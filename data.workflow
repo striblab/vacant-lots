@@ -18,29 +18,27 @@
 BASE=data
 
 
-; EXAMPLE: Download file. Using the %download tag, we can download
+; Download file. Using the %download tag, we can download
 ; all things with drake %download
-sources/population-zip-code-2010.csv, %download <- [-timecheck]
+sources/st-paul-vacant-lots.csv, %download <- [-timecheck]
   mkdir -p $BASE/sources
-  wget -O $OUTPUT "https://data.lacity.org/api/views/nxs9-385f/rows.csv?accessType=DOWNLOAD"
+  wget -O $OUTPUT "https://information.stpaul.gov/api/views/rfbb-x7za/rows.csv?accessType=DOWNLOAD"
 
-sources/youth-tobacco-survey.csv, %download <- [-timecheck]
+; Census data
+sources/st-paul-acs-tracts-race-poverty-income-renter.zip, %download <- [-timecheck]
   mkdir -p $BASE/sources
-  wget -O $OUTPUT "https://chronicdata.cdc.gov/api/views/4juz-x2tp/rows.csv?accessType=DOWNLOAD"
+  wget -O $OUTPUT "https://api.censusreporter.org/1.0/data/download/latest?table_ids=B02001,B17001,B19001,B25003&geo_ids=140|16000US2758000&format=geojson"
 
 
-; EXAMPLE: Convert to JSON
-build/population-zip-code-2010.json, %convert <- sources/population-zip-code-2010.csv
-  mkdir -p $BASE/build
-  csvjson $INPUT > $OUTPUT
+
+; Unarchive
+sources/acs2015_5yr_B02001_14000US27123030900/acs2015_5yr_B02001_14000US27123030900.geojson, sources/acs2015_5yr_B02001_14000US27123030900/metadata.json, %convert <- sources/st-paul-acs-tracts-race-poverty-income-renter.zip
+  unzip -o $INPUT -d $BASE/sources
 
 
-; EXAMPLE: Raw JS processing (if more than a few lines, use a separate file)
-%youth-tobacco-survey.analysis, %analysis <- sources/youth-tobacco-survey.csv [node]
-  const fs = require('fs');
-  const csv = require('d3-dsv').dsvFormat(',');
-  let survey = csv.parse(fs.readFileSync(process.env.INPUT, 'utf-8'));
-  console.log('Survey rows: ', survey.length);
+; Run analysis on vacant lots
+%vacant-lots.analysis, %analysis <- sources/st-paul-vacant-lots.csv, sources/acs2015_5yr_B02001_14000US27123030900/acs2015_5yr_B02001_14000US27123030900.geojson, sources/acs2015_5yr_B02001_14000US27123030900/metadata.json
+  node $BASE/lib/vacant-lots.js $INPUT $INPUT1 $INPUT2
 
 
 ; Cleanup tasks
